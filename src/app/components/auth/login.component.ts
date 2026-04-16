@@ -1,0 +1,215 @@
+import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterLink],
+  template: `
+    <div class="auth-page">
+      <div class="auth-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="grid"></div>
+      </div>
+
+      <div class="auth-card fade-in">
+        <!-- Logo -->
+        <div class="auth-logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 32 32" fill="none">
+              <rect width="32" height="32" rx="10" fill="url(#g1)"/>
+              <path d="M8 22L14 10L18 17L21 13L24 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="14" cy="10" r="1.5" fill="#00e5c3"/>
+              <circle cx="21" cy="13" r="1.5" fill="#00e5c3"/>
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="32" y2="32">
+                  <stop offset="0%" stop-color="#6c63ff"/>
+                  <stop offset="100%" stop-color="#3b35c4"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="logo-text">QuantityMeasure</span>
+        </div>
+
+        <h2>Welcome back</h2>
+        <p class="sub">Sign in to continue your conversion work.</p>
+
+        <!-- Error -->
+        @if (errorMsg()) {
+          <div class="alert alert-error">
+            <span>⚠</span> {{ errorMsg() }}
+          </div>
+        }
+
+        <div class="form">
+          <div class="input-group">
+            <label>Email</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor" width="16"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+              <input type="email" [(ngModel)]="email" placeholder="you@example.com" [class.has-error]="submitted && !email" />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>Password</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor" width="16"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+              <input [type]="showPw ? 'text' : 'password'" [(ngModel)]="password" placeholder="••••••••" [class.has-error]="submitted && !password" />
+              <button class="eye-btn" type="button" (click)="showPw = !showPw">
+                {{ showPw ? '🙈' : '👁' }}
+              </button>
+            </div>
+          </div>
+
+          <button class="submit-btn" (click)="login()" [class.loading]="isLoading">
+            @if (isLoading) {
+              <span class="spinner"></span> Signing in...
+            } @else {
+              Sign In →
+            }
+          </button>
+        </div>
+
+        <div class="auth-footer">
+          Don't have an account?
+          <a routerLink="/auth/signup">Create one</a>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding: 24px;
+    }
+    .auth-bg { position: absolute; inset: 0; pointer-events: none; }
+    .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.3; }
+    .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, var(--primary), transparent 70%); top: -100px; right: -100px; animation: float 9s ease-in-out infinite; }
+    .orb-2 { width: 350px; height: 350px; background: radial-gradient(circle, var(--accent), transparent 70%); bottom: -50px; left: -50px; animation: float 11s ease-in-out infinite reverse; }
+    .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 60px 60px; }
+
+    .auth-card {
+      position: relative;
+      z-index: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow-lg);
+      margin: 0 auto;
+    }
+    .auth-logo {
+      display: flex; align-items: center; gap: 9px;
+      margin-bottom: 22px;
+      svg { width: 30px; height: 30px; }
+    }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; background: linear-gradient(90deg, var(--text-1), var(--primary-l)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h2 { font-size: 1.55rem; margin-bottom: 5px; }
+    .sub { color: var(--text-2); font-size: 0.86rem; margin-bottom: 20px; line-height: 1.5; }
+
+    .alert {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 13px;
+      border-radius: 8px;
+      font-size: 0.83rem;
+      margin-bottom: 14px;
+      animation: fadeIn 0.25s ease;
+    }
+    .alert-error { background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.25); color: var(--warn); }
+
+    .form { display: flex; flex-direction: column; gap: 14px; }
+    .input-group {
+      display: flex; flex-direction: column; gap: 5px;
+      label { font-family: 'Syne', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; }
+    }
+    .input-wrap { position: relative; }
+    .input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+    input {
+      width: 100%;
+      padding: 11px 38px 11px 38px;
+      background: var(--bg-2);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      color: var(--text-1);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: 'DM Sans', sans-serif;
+      &:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,99,255,0.12); }
+      &.has-error { border-color: var(--warn); }
+      &::placeholder { color: var(--text-3); }
+    }
+    .eye-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 0.82rem; opacity: 0.55; line-height: 1; &:hover { opacity: 1; } }
+
+    .submit-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-d));
+      color: white;
+      border: none;
+      border-radius: 9px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.93rem;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 6px;
+      box-shadow: 0 4px 16px rgba(108,99,255,0.35);
+      &:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(108,99,255,0.5); }
+      &:active { transform: scale(0.99); }
+      &.loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
+    }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+    .auth-footer { text-align: center; margin-top: 18px; font-size: 0.83rem; color: var(--text-3); a { color: var(--primary-l); font-weight: 600; &:hover { text-decoration: underline; } } }
+
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  `]
+})
+export class LoginComponent {
+  private auth   = inject(AuthService);
+  private router = inject(Router);
+  private toast  = inject(ToastService);
+
+  email    = '';
+  password = '';
+  showPw   = false;
+  isLoading = false;
+  submitted = false;
+  errorMsg  = signal('');
+
+  login() {
+    this.submitted = true;
+    if (!this.email || !this.password) {
+      this.errorMsg.set('Please fill in all fields.');
+      return;
+    }
+    this.isLoading = true;
+    this.errorMsg.set('');
+    setTimeout(() => {
+      const res = this.auth.login(this.email, this.password);
+      if (res.success) {
+        this.toast.show('Welcome back! 👋', 'success');
+        this.router.navigate(['/home']);
+      } else {
+        this.errorMsg.set(res.message);
+      }
+      this.isLoading = false;
+    }, 600);
+  }
+}
