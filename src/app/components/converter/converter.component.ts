@@ -487,6 +487,7 @@ export class ConverterComponent implements OnInit {
     this.result = '';
   }
 
+  
   selectOp(op: Operation) {
     this.selectedOp = op;
     this.result = '';
